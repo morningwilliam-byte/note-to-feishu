@@ -3,9 +3,10 @@
 本地测试：把 HTML 文件转成飞书 blocks，打印可读预览，不上传飞书。
 用法：python3 test_html_convert.py input.html
 """
+import os
 import sys
 import json
-sys.path.insert(0, "/Users/boyu/ClaudeCodeFolder")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from note_to_feishu import HTMLToBlocks
 
 BLOCK_TYPE_NAME = {

@@ -475,10 +475,30 @@ class HTMLToBlocks(HTMLParser):
         return self._blocks
 
 
+def _merge_consecutive_headings(blocks):
+    """Merge consecutive heading blocks of the same type.
+
+    Apple Notes wraps each heading segment in its own <h1>/<h2>/... tag, so
+    'StarFactory — <h1>产品需求文档</h1>' becomes multiple H1 blocks.  This
+    pass collapses them back into one block per heading line.
+    """
+    HEADING_TYPES = set(range(3, 12))  # 3=H1 … 11=H9
+    result = []
+    for block in blocks:
+        bt = block.get("block_type")
+        if bt in HEADING_TYPES and result and result[-1].get("block_type") == bt:
+            prev = result[-1]
+            key = next(k for k in prev if k != "block_type")
+            prev[key]["elements"].extend(block.get(key, {}).get("elements", []))
+        else:
+            result.append(block)
+    return result
+
+
 def html_to_blocks(html):
     p = HTMLToBlocks()
     p.feed(html)
-    return p.get_blocks()
+    return _merge_consecutive_headings(p.get_blocks())
 
 
 def plain_to_blocks(text):
@@ -819,6 +839,9 @@ if __name__ == "__main__":
             blocks = plain_to_blocks(content or "(空剪贴板)")
     else:
         html_content = sys.stdin.read()
+        # Always save last input for debugging
+        with open("/tmp/note_to_feishu_last_input.html", "w", encoding="utf-8") as _f:
+            _f.write(html_content)
         if debug:
             print(f"[HTML 前 1000 字符]\n{html_content[:1000]}\n", file=sys.stderr)
         blocks = html_to_blocks(html_content) or plain_to_blocks("(空笔记)")

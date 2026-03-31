@@ -721,17 +721,39 @@ def _upload_block_tree(doc_id, parent_id, nodes, token, start_index=0):
     pending = []          # (block, children) pairs awaiting batch write
     id_children = []      # (created_block_id, children_list) for recursive upload
 
+    def _post_one(item, index):
+        return http_post(
+            f"https://open.feishu.cn/open-apis/docx/v1/documents/{doc_id}/blocks/{parent_id}/children",
+            {"children": [item[0]], "index": index},
+            token
+        )
+
+    def _post_batch(items, index):
+        return http_post(
+            f"https://open.feishu.cn/open-apis/docx/v1/documents/{doc_id}/blocks/{parent_id}/children",
+            {"children": [b for b, _ in items], "index": index},
+            token
+        )
+
     def flush_pending():
         nonlocal written
         for j in range(0, len(pending), BATCH):
             batch = pending[j:j + BATCH]
-            r = http_post(
-                f"https://open.feishu.cn/open-apis/docx/v1/documents/{doc_id}/blocks/{parent_id}/children",
-                {"children": [b for b, _ in batch], "index": start_index + written},
-                token
-            )
+            r = _post_batch(batch, start_index + written)
             if r.get("code") != 0:
-                print(f"  写入错误 (parent={parent_id}): {r}", file=sys.stderr)
+                # Batch failed — retry one by one, skipping invalid blocks
+                for item in batch:
+                    r1 = _post_one(item, start_index + written)
+                    if r1.get("code") != 0:
+                        blk = item[0]
+                        ck = next((k for k in blk if k not in ("block_type", "_indent")), None)
+                        elems = blk.get(ck, {}).get("elements", []) if ck else []
+                        text = "".join(e.get("text_run", {}).get("content", "") for e in elems)
+                        print(f"  ⚠️ 跳过无效 block type={blk.get('block_type')}: {text[:80]!r}", file=sys.stderr)
+                    else:
+                        bid = r1["data"]["children"][0]["block_id"]
+                        id_children.append((bid, item[1]))
+                        written += 1
                 pending.clear()
                 return
             for k, (_, children) in enumerate(batch):

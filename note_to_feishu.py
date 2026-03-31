@@ -380,7 +380,7 @@ class HTMLToBlocks(HTMLParser):
             # Use nesting depth for indent level (1-based)
             self._indent_level = len(self._list_stack)
         elif tag == "br":
-            self._flush()
+            pass  # soft break within block — keep heading/paragraph content together
         elif tag in ("b", "strong"):
             self._style_stack.append({"bold": True})
         elif tag in ("i", "em"):

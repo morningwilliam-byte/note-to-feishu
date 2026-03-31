@@ -1,0 +1,23 @@
+# Secrets — never commit
+config.json
+*.secret
+
+# OAuth tokens (stored in ~/.config/, but just in case)
+user_token.json
+*.token
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
